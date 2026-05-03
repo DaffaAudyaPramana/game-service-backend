@@ -1,11 +1,15 @@
+console.log("ESM ACTIVE");
+
 import express from "express";
 import orderRoutes from "./routes/orderRoutes.js";
 import cors from "cors";
+import path from "path";
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+app.use("/uploads", express.static("uploads"));
 
 // test route
 app.get("/", (req, res) => {
