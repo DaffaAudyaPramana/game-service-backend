@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 
-const JWT_SECRET = "SECRET_KEY"; // nanti pindah ke .env
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export const me = async (req, res) => {
   res.json({
@@ -63,6 +63,7 @@ export const login = async (req, res) => {
   res.cookie("token", token, {
     httpOnly: true,
     sameSite: "lax",
+    secure: false,
   });
 
   res.json({

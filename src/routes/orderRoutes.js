@@ -1,30 +1,36 @@
 import express from "express";
-// import { createOrder } from "../controllers/orderController.js";
-import { createOrder, getOrderByOrderId } from "../controllers/orderController.js";
-import upload from "../utils/upload.js";
-import { uploadPaymentProof } from "../controllers/orderController.js";
+
 import {
+  createOrder,
+  getOrderByOrderId,
+  uploadPaymentProof,
   getAllOrders,
   updatePaymentStatus,
 } from "../controllers/orderController.js";
 
+import upload from "../utils/upload.js";
+
+import { protect } from "../middlewares/auth.js";
+
 const router = express.Router();
 
-// endpoint
-router.get("/:orderId", getOrderByOrderId);
-router.post("/", createOrder);
+// GET ALL ORDERS
 router.get("/", getAllOrders);
 
-// endpoint upload bukti
+// GET SINGLE ORDER
+router.get("/:orderId", getOrderByOrderId);
+
+// CREATE ORDER (LOGIN REQUIRED)
+router.post("/", protect, createOrder);
+
+// UPLOAD PAYMENT PROOF
 router.post(
   "/:orderId/upload-proof",
   upload.single("file"),
   uploadPaymentProof
 );
 
-// approve / reject
+// UPDATE PAYMENT STATUS
 router.patch("/:orderId/payment", updatePaymentStatus);
-
-router.post("/", protect, createOrder);
 
 export default router;

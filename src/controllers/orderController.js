@@ -32,6 +32,9 @@ export const createOrder = async (req, res) => {
           productId,
           totalPrice,
           status: "pending",
+
+          userId: req.user.id,
+
           name,
           method,
           platform,
@@ -52,6 +55,20 @@ export const createOrder = async (req, res) => {
 
       return { order, gtaOrder };
     });
+
+    // 🔥 AMBIL USER
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+    });
+
+    // 🔥 KIRIM EMAIL
+    if (user?.email) {
+      try {
+        await sendEmail(user.email, order.orderId);
+      } catch (err) {
+        console.error("Email gagal:", err.message);
+      }
+    }
 
     res.status(200).json({
       message: "Order + GTAOrder berhasil dibuat",
@@ -233,8 +250,8 @@ const sendEmail = async (to, orderId) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "email@gmail.com",
-      pass: "app_password",
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
 
@@ -244,9 +261,3 @@ const sendEmail = async (to, orderId) => {
     text: `Terima kasih telah order ${orderId}`,
   });
 };
-
-const user = await prisma.user.findUnique({
-  where: { id: req.user.id },
-});
-
-await sendEmail(user.email, order.orderId);
