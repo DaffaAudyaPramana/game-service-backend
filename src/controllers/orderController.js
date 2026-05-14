@@ -3,8 +3,115 @@ import generateOrderId from "../utils/generateOrderId.js";
 import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import nodemailer from "nodemailer";
+import client from "../lib/discord.Bot.js";
+import { ChannelType } from "discord.js";
+
+console.log(process.env.EMAIL_USER);
 
 const prisma = new PrismaClient();
+
+const serviceLabels = {
+  money: "Money Service",
+  rank: "Rank Boost",
+  unlock: "Unlock Service",
+  paket: "Paket GTA V",
+};
+
+const createDiscordTicket = async (order, tx) => {
+  try {
+    const guild = await client.guilds.fetch("1487728359482851348");
+
+    const channel = await guild.channels.create({
+      name: `ticket-ord-${order.name
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9-]/g, "")}-${order.id}`,
+      type: ChannelType.GuildText,
+    });
+
+    await tx.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        discordChannelId: channel.id,
+      },
+    });
+
+    await channel.send({
+      content: "<@1488312339605356705>",
+
+      embeds: [
+        {
+          title: "🛒 ORDER BARU",
+          color: 5763719,
+
+          fields: [
+            {
+              name: "Order ID",
+              value: order.orderId,
+              inline: true,
+            },
+            {
+              name: "Nama",
+              value: order.name || "-",
+              inline: true,
+            },
+            {
+              name: "Service",
+              value: order.service || "-",
+              inline: true,
+            },
+            {
+              name: "Item",
+              value: order.item || "-",
+              inline: false,
+            },
+            {
+              name: "Harga",
+              value: `Rp ${order.totalPrice.toLocaleString("id-ID")}`,
+              inline: true,
+            },
+            {
+              name: "Metode",
+              value: order.method || "-",
+              inline: true,
+            },
+            {
+              name: "Platform",
+              value: order.platform || "-",
+              inline: true,
+            },
+            {
+              name: "Versi",
+              value: order.version || "-",
+              inline: true,
+            },
+            {
+              name: "Rockstar ID",
+              value: order.gameUserId || "-",
+              inline: false,
+            },
+            {
+              name: "Notes",
+              value: order.notes || "-",
+              inline: false,
+            },
+          ],
+
+          footer: {
+            text: "HyperIndoStore",
+          },
+
+          timestamp: new Date(),
+        },
+      ],
+    });
+
+  } catch (err) {
+    console.error("Discord ticket gagal:", err);
+  }
+};
 
 export const createOrder = async (req, res) => {
   try {
@@ -42,6 +149,10 @@ export const createOrder = async (req, res) => {
           gameUserId,
           notes,
         },
+
+        include: {
+          product: true,
+        },
       });
 
       const gtaOrder = await tx.gTAOrder.create({
@@ -64,11 +175,20 @@ export const createOrder = async (req, res) => {
     // 🔥 KIRIM EMAIL
     if (user?.email) {
       try {
-        await sendEmail(user.email, order.orderId);
+        await sendEmail(user.email, result.order.orderId);
       } catch (err) {
         console.error("Email gagal:", err.message);
       }
     }
+
+    await createDiscordTicket({
+      ...result.order,
+      service: serviceLabels[result.order.product.category] || result.order.product.category,
+      item: result.order.product.name,
+    },
+    
+    prisma
+  );
 
     res.status(200).json({
       message: "Order + GTAOrder berhasil dibuat",
@@ -162,6 +282,33 @@ export const uploadPaymentProof = async (req, res) => {
         proof: req.file.filename,
       },
     });
+
+    if (order.discordChannelId) {
+      try {
+        const channel = await client.channels.fetch(
+          order.discordChannelId
+        );
+
+        if (channel) {
+          await channel.send({
+            content:
+              "📥 Bukti transfer berhasil diupload customer",
+
+            files: [
+              {
+                attachment: filePath,
+                name: req.file.filename,
+              },
+            ],
+          });
+        }
+      } catch (err) {
+        console.error(
+          "Gagal kirim bukti transfer ke Discord:",
+          err
+        );
+      }
+    }
 
     res.json({
       message: "Upload berhasil",
@@ -258,6 +405,6 @@ const sendEmail = async (to, orderId) => {
   await transporter.sendMail({
     to,
     subject: "Order Berhasil",
-    text: `Terima kasih telah order ${orderId}`,
+    text: `Terima kasih telah order jasa GTA V di HyperIndoStore,  ${orderId}`,
   });
 };
