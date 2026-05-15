@@ -4,7 +4,7 @@ import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import nodemailer from "nodemailer";
 import client from "../lib/discord.Bot.js";
-import { ChannelType } from "discord.js";
+import { ChannelType, PermissionFlagsBits } from "discord.js";
 
 console.log(process.env.EMAIL_USER);
 
@@ -19,14 +19,59 @@ const serviceLabels = {
 
 const createDiscordTicket = async (order, tx) => {
   try {
-    const guild = await client.guilds.fetch("1487728359482851348");
+      const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
 
-    const channel = await guild.channels.create({
-      name: `ticket-ord-${order.name
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9-]/g, "")}-${order.id}`,
-      type: ChannelType.GuildText,
+      const ticketName = `ticket-ord-${(order.name || "customer")
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")}-${order.id}`;
+
+      const channel = await guild.channels.create({
+        name: ticketName,
+        type: ChannelType.GuildText,
+        // ini yang membuat channel masuk ke category ACTIVE TICKETS
+        parent: process.env.DISCORD_ACTIVE_TICKET_CATEGORY_ID,
+        reason: `New order ticket ${order.orderId}`,
+      
+              permissionOverwrites: [
+        {
+          id: guild.roles.everyone.id,
+          deny: [
+            PermissionFlagsBits.ViewChannel,
+          ],
+        },
+        {
+          id: process.env.DISCORD_OWNER_ROLE_ID,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        },
+        {
+          id: process.env.DISCORD_ADMIN_ROLE_ID,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        },
+        {
+          id: client.user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.ManageChannels,
+          ],
+        },
+      ],
     });
 
     await tx.order.update({
@@ -38,8 +83,16 @@ const createDiscordTicket = async (order, tx) => {
       },
     });
 
+    const ownerRoleId = process.env.DISCORD_OWNER_ROLE_ID;
+    const adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
+    const mentionRoles = [ownerRoleId, adminRoleId].filter(Boolean);
+
     await channel.send({
-      content: "<@1488312339605356705>",
+      content: mentionRoles.map((roleId) => `<@&${roleId}>`).join(" "),
+
+      allowedMentions: {
+        roles: mentionRoles,
+      },
 
       embeds: [
         {
