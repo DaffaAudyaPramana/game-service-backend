@@ -17,6 +17,35 @@ const serviceLabels = {
   paket: "Paket GTA V",
 };
 
+export const getMyOrders = async (req, res) => {
+  try {
+    const orders = await prisma.order.findMany({
+      where: {
+        userId: req.user.id,
+      },
+      include: {
+        product: true,
+        payment: true,
+        gtaOrder: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return res.json({
+      message: "Berhasil ambil order customer",
+      data: orders,
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      error: "Gagal ambil order customer",
+    });
+  }
+};
+
 const createDiscordTicket = async (order, tx) => {
   try {
       const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
