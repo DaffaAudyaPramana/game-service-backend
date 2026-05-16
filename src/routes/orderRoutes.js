@@ -1,21 +1,22 @@
 import express from "express";
-
 import {
   createOrder,
   getOrderByOrderId,
   uploadPaymentProof,
   getAllOrders,
   updatePaymentStatus,
+  getMyOrders,
 } from "../controllers/orderController.js";
-
 import upload from "../utils/upload.js";
-
 import { protect } from "../middlewares/auth.js";
 
 const router = express.Router();
 
 // GET ALL ORDERS
 router.get("/", getAllOrders);
+
+// GET MY ORDERS
+router.get("/my", protect, getMyOrders);
 
 // GET SINGLE ORDER
 router.get("/:orderId", getOrderByOrderId);
