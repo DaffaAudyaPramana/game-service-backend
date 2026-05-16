@@ -109,9 +109,9 @@ export const me = async (req, res) => {
 // REGISTER
 export const register = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { firstName, lastName, email, password } = req.body;
 
-    if (!email || !password) {
+    if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({
         error: "Email dan password wajib diisi",
       });
@@ -131,11 +131,15 @@ export const register = async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
+        firstName,
+        lastName,
         email,
         password: hashed,
       },
       select: {
         id: true,
+        firstName: true,
+        lastName: true,
         email: true,
         role: true,
         createdAt: true,
@@ -210,6 +214,8 @@ export const login = async (req, res) => {
       message: "Login sukses",
       user: {
         id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
       },
