@@ -9,20 +9,21 @@ import {
 } from "../controllers/orderController.js";
 import upload from "../utils/upload.js";
 import { protect } from "../middlewares/auth.js";
+import { adminOnly } from "../middlewares/admin.js";
 
 const router = express.Router();
-
-// GET ALL ORDERS
-router.get("/", getAllOrders);
 
 // GET MY ORDERS
 router.get("/my", protect, getMyOrders);
 
-// GET SINGLE ORDER
-router.get("/:orderId", getOrderByOrderId);
-
 // CREATE ORDER (LOGIN REQUIRED)
 router.post("/", protect, createOrder);
+
+// GET ALL ORDERS
+router.get("/", getAllOrders);
+
+// GET SINGLE ORDER
+router.get("/:orderId", getOrderByOrderId);
 
 // UPLOAD PAYMENT PROOF
 router.post(
@@ -32,6 +33,11 @@ router.post(
 );
 
 // UPDATE PAYMENT STATUS
-router.patch("/:orderId/payment", updatePaymentStatus);
+router.patch(
+  "/:orderId/payment-status",
+  protect,
+  adminOnly,
+  updatePaymentStatus
+);
 
 export default router;
