@@ -10,6 +10,8 @@ import path from "path";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
+import rewardRoutes from "./routes/rewardRoutes.js"
 
 const app = express();
 
@@ -26,6 +28,8 @@ app.use("/uploads", express.static("uploads"));
 app.use("/auth", authRoutes);
 app.use("/orders", orderRoutes);
 app.use("/admin", adminRoutes);
+app.use("/feedback", feedbackRoutes);
+app.use("/rewards", rewardRoutes);
 
 // test route
 app.get("/", (req, res) => {
