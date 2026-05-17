@@ -9,6 +9,7 @@ import cors from "cors";
 import path from "path";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use(cookieParser());
 app.use("/uploads", express.static("uploads"));
 app.use("/auth", authRoutes);
 app.use("/orders", orderRoutes);
+app.use("/admin", adminRoutes);
 
 // test route
 app.get("/", (req, res) => {
