@@ -10,6 +10,14 @@ console.log(process.env.EMAIL_USER);
 
 const prisma = new PrismaClient();
 
+const POINT_RATE = 2500;
+
+const calculateOrderPoints = (totalPrice) => {
+  const points = Math.floor(Number(totalPrice || 0) / POINT_RATE);
+
+  return Math.max(points, 1);
+};
+
 const serviceLabels = {
   money: "Money Service",
   rank: "Rank Boost",
@@ -451,6 +459,11 @@ export const updatePaymentStatus = async (req, res) => {
 
     const order = await prisma.order.findUnique({
       where: { orderId },
+      include: {
+        payment: true,
+        user: true,
+        pointLedger: true,
+      },
     });
 
     if (!order) {
@@ -459,29 +472,82 @@ export const updatePaymentStatus = async (req, res) => {
       });
     }
 
-    // update payment
-    const payment = await prisma.payment.update({
-      where: { orderId: order.id },
-      data: {
-        status,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.update({
+        where: {
+          orderId: order.id,
+        },
+        data: {
+          status,
+        },
+      });
+
+      const updatedOrder = await tx.order.update({
+        where: {
+          id: order.id,
+        },
+        data: {
+          status: status === "approved" ? "completed" : "rejected",
+        },
+      });
+
+      let earnedPoints = 0;
+
+      if (status === "approved") {
+        const existingPointLedger = await tx.pointLedger.findUnique({
+          where: {
+            orderId: order.id,
+          },
+        });
+
+        if (!existingPointLedger) {
+          earnedPoints = calculateOrderPoints(order.totalPrice);
+
+          const updatedUser = await tx.user.update({
+            where: {
+              id: order.userId,
+            },
+            data: {
+              points: {
+                increment: earnedPoints,
+              },
+            },
+            select: {
+              points: true,
+            },
+          });
+
+          await tx.pointLedger.create({
+            data: {
+              userId: order.userId,
+              orderId: order.id,
+              type: "EARN",
+              points: earnedPoints,
+              description: `Poin dari order ${order.orderId}`,
+              balanceAfter: updatedUser.points,
+            },
+          });
+        }
+      }
+
+      return {
+        payment,
+        order: updatedOrder,
+        earnedPoints,
+      };
     });
 
-    // update order juga
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: status === "approved" ? "completed" : "rejected",
-      },
-    });
-
-    res.json({
-      message: "Status berhasil diupdate",
-      data: payment,
+    return res.json({
+      message:
+        status === "approved"
+          ? `Pembayaran berhasil diapprove. Customer mendapatkan ${result.earnedPoints} poin.`
+          : "Pembayaran berhasil ditolak",
+      data: result,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({
+
+    return res.status(500).json({
       error: "Gagal update status",
     });
   }
