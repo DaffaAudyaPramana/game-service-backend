@@ -6,10 +6,12 @@ import nodemailer from "nodemailer";
 
 const prisma = new PrismaClient();
 
+const isDevelopment = process.env.NODE_ENV === "development";
+
 const cookieOptions = {
   httpOnly: true,
   sameSite: "lax",
-  secure: false,
+  secure: isDevelopment,
   path: "/",
 };
 
@@ -127,7 +129,7 @@ export const register = async (req, res) => {
       });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
       data: {
@@ -175,8 +177,8 @@ export const login = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        error: "User tidak ditemukan",
+      return res.status(401).json({
+        error: "Email atau password salah",
       });
     }
 
@@ -184,7 +186,7 @@ export const login = async (req, res) => {
 
     if (!valid) {
       return res.status(401).json({
-        error: "Password salah",
+        error: "Email atau password salah",
       });
     }
 
@@ -292,9 +294,9 @@ export const resetPassword = async (req, res) => {
       });
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return res.status(400).json({
-        error: "Password minimal 6 karakter",
+        error: "Password minimal 8 karakter",
       });
     }
 
