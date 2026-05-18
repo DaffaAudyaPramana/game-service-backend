@@ -2,9 +2,10 @@
   "name": "game-service-backend",
   "version": "1.0.0",
   "description": "backend for game-service-marketplace project",
-  "main": "src/index.jsindex.js",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
+    "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

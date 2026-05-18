@@ -19,13 +19,9 @@ import rewardRoutes from "./routes/rewardRoutes.js"
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
 app.set("trust proxy", 1);
-
-app.use(cors({
-  origin: "http://localhost:3000",
-  credentials: true,
-}));
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
@@ -102,6 +98,6 @@ app.get("/", (req, res) => {
   res.send("API Running 🚀");
 });
 
-app.listen(5000, () => {
-  console.log("Server running on http://localhost:5000");
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
