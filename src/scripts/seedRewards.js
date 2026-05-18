@@ -4,56 +4,71 @@ const prisma = new PrismaClient();
 
 const rewards = [
   {
-    name: "Uang IC / In Game 20.000",
-    description: "Reward money kecil untuk customer aktif.",
+    name: "5x Heist",
+    description: "Redeem 5x run heist untuk layanan Money Heist GTA V.",
     category: "money",
-    pointsCost: 150,
+    pointsCost: 25,
+    sortOrder: 1,
     stock: null,
     active: true,
   },
   {
-    name: "Uang IC 50.000 + Voucher Dealer 30%",
-    description: "Reward money dan voucher diskon.",
-    category: "voucher",
-    pointsCost: 700,
+    name: "10x Heist",
+    description: "Redeem 10x run heist untuk layanan Money Heist GTA V.",
+    category: "money",
+    pointsCost: 50,
+    sortOrder: 2,
     stock: null,
     active: true,
   },
   {
-    name: "15.000 Uang IC + PDM Motorcycle",
-    description: "Reward kendaraan motor PDM + uang IC.",
+    name: "15x Heist",
+    description: "Redeem 15x run heist untuk layanan Money Heist GTA V.",
+    category: "money",
+    pointsCost: 75,
+    sortOrder: 3,
+    stock: null,
+    active: true,
+  },
+  {
+    name: "10 Kendaraan",
+    description: "Redeem pemasangan 10 kendaraan untuk akun GTA V kamu.",
     category: "vehicle",
-    pointsCost: 900,
+    pointsCost: 50,
+    sortOrder: 4,
     stock: null,
     active: true,
   },
   {
-    name: "10.000 Uang IC + PDM SUV",
-    description: "Reward kendaraan SUV PDM + uang IC.",
-    category: "vehicle",
-    pointsCost: 1700,
+    name: "Pilih & Pasang 1 Set Outfit",
+    description: "Redeem 1 set outfit pilihan kamu untuk akun GTA V.",
+    category: "outfit",
+    pointsCost: 100,
+    sortOrder: 5,
     stock: null,
     active: true,
   },
   {
-    name: "Voucher Diskon Donasi 250.000",
-    description: "Voucher diskon untuk order atau donasi berikutnya.",
-    category: "discount",
-    pointsCost: 2200,
-    stock: null,
-    active: true,
-  },
-  {
-    name: "Mobil Sport Import",
-    description: "Reward kendaraan sport import.",
-    category: "vehicle",
-    pointsCost: 3200,
+    name: "SPESIAL - Bebas Pilih Layanan",
+    description:
+      "Bebas pilih layanan dari daftar harga HyperIndoStore. Konfirmasi detail reward dengan admin.",
+    category: "special",
+    pointsCost: 260,
+    sortOrder: 6,
     stock: null,
     active: true,
   },
 ];
 
 const main = async () => {
+  // Nonaktifkan reward lama supaya tidak muncul di frontend
+  await prisma.reward.updateMany({
+    data: {
+      active: false,
+    },
+  });
+
+  // Tambahkan / update reward baru
   for (const reward of rewards) {
     await prisma.reward.upsert({
       where: {
@@ -64,7 +79,7 @@ const main = async () => {
     });
   }
 
-  console.log("Reward seed berhasil");
+  console.log("Reward berhasil diperbarui");
 };
 
 main()
