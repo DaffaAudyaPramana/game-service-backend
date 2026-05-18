@@ -8,9 +8,14 @@ export const getRewards = async (req, res) => {
       where: {
         active: true,
       },
-      orderBy: {
+      orderBy: [
+      {
+        sortOrder: "asc",
+      },
+      {
         pointsCost: "asc",
       },
+     ],
     });
 
     return res.json({
