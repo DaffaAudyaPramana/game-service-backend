@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Reward" ADD COLUMN     "sortOrder" INTEGER NOT NULL DEFAULT 999;
