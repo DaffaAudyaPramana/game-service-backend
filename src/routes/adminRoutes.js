@@ -6,22 +6,18 @@ import {
  } from "../controllers/adminController.js";
 import { protect } from "../middlewares/auth.js";
 import { adminOnly } from "../middlewares/admin.js";
+import { adminLimiter } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
-router.get("/users", protect, adminOnly, getAllUsersWithOrders);
+router.use(protect, adminOnly, adminLimiter);
 
-router.get(
-  "/reward-redemptions",
-  protect,
-  adminOnly,
-  getRewardRedemptions
-);
+router.get("/users", getAllUsersWithOrders);
+
+router.get("/reward-redemptions", getRewardRedemptions);
 
 router.patch(
   "/reward-redemptions/:redemptionId/status",
-  protect,
-  adminOnly,
   updateRewardRedemptionStatus
 );
 
