@@ -10,12 +10,18 @@ console.log(process.env.EMAIL_USER);
 
 const prisma = new PrismaClient();
 
-const POINT_RATE = 2500;
+const POINT_RATE = 10000;
+const BONUS_POINT_MIN_PRICE = 200000;
+const BONUS_POINTS = 3;
 
 const calculateOrderPoints = (totalPrice) => {
-  const points = Math.floor(Number(totalPrice || 0) / POINT_RATE);
+  const price = Number(totalPrice || 0);
 
-  return Math.max(points, 1);
+  const basePoints = Math.floor(price / POINT_RATE);
+
+  const bonusPoints = price > BONUS_POINT_MIN_PRICE ? BONUS_POINTS : 0;
+
+  return basePoints + bonusPoints;
 };
 
 const serviceLabels = {
