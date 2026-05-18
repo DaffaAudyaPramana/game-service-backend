@@ -7,9 +7,11 @@ import {
   updatePaymentStatus,
   getMyOrders,
 } from "../controllers/orderController.js";
-import upload from "../utils/upload.js";
 import { protect } from "../middlewares/auth.js";
 import { adminOnly } from "../middlewares/admin.js";
+import { orderOwnerOrAdmin } from "../middlewares/orderAccess.js";
+import { uploadLimiter } from "../middlewares/rateLimit.js";
+import upload from "../utils/upload.js";
 
 const router = express.Router();
 
@@ -20,14 +22,17 @@ router.get("/my", protect, getMyOrders);
 router.post("/", protect, createOrder);
 
 // GET ALL ORDERS
-router.get("/", getAllOrders);
+router.get("/", protect, adminOnly, getAllOrders);
 
 // GET SINGLE ORDER
-router.get("/:orderId", getOrderByOrderId);
+router.get("/:orderId", protect, orderOwnerOrAdmin, getOrderByOrderId);
 
 // UPLOAD PAYMENT PROOF
 router.post(
   "/:orderId/upload-proof",
+  protect,
+  orderOwnerOrAdmin,
+  uploadLimiter,
   upload.single("file"),
   uploadPaymentProof
 );
