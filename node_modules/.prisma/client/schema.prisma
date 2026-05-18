@@ -135,6 +135,7 @@ model Reward {
   description String?
   category    String   @default("voucher")
   pointsCost  Int
+  sortOrder   Int      @default(999)
   stock       Int?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
