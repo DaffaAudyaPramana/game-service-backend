@@ -6,13 +6,18 @@ import nodemailer from "nodemailer";
 
 const prisma = new PrismaClient();
 
-const isDevelopment = process.env.NODE_ENV === "development";
+const isProduction = process.env.NODE_ENV === "production";
 
-const cookieOptions = {
+const baseCookieOptions = {
   httpOnly: true,
-  sameSite: "lax",
-  secure: isDevelopment,
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
   path: "/",
+};
+
+const loginCookieOptions = {
+  ...baseCookieOptions,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
 };
 
 const createResetToken = () => {
@@ -29,18 +34,46 @@ const createResetToken = () => {
   };
 };
 
+const createToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET belum diatur");
+  }
+
+  return jwt.sign(
+    {
+      id: user.id,
+      role: user.role,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+};
+
+const getSafeUser = (user) => {
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    role: user.role,
+    createdAt: user.createdAt,
+  };
+};
+
 const sendResetPasswordEmail = async (to, resetUrl) => {
-  console.log("EMAIL_USER:", process.env.EMAIL_USER);
-  console.log("EMAIL_PASS ADA:", !!process.env.EMAIL_PASS);
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000,
   });
-console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS ADA:", !!process.env.EMAIL_PASS);
+
   await transporter.sendMail({
     to,
     subject: "Reset Password HyperIndoStore",
@@ -115,7 +148,7 @@ export const register = async (req, res) => {
 
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({
-        error: "Email dan password wajib diisi",
+        error: "Nama, email, dan password wajib diisi",
       });
     }
 
@@ -148,9 +181,13 @@ export const register = async (req, res) => {
       },
     });
 
+    const token = createToken(user);
+
+    res.cookie("token", token, loginCookieOptions);
+
     return res.status(201).json({
       message: "Register sukses",
-      user,
+      user: getSafeUser(user),
     });
   } catch (err) {
     console.error(err);
@@ -190,40 +227,22 @@ export const login = async (req, res) => {
       });
     }
 
-    if (!process.env.JWT_SECRET) {
+    const token = createToken(user);
+
+    res.cookie("token", token, loginCookieOptions);
+
+    return res.json({
+      message: "Login sukses",
+      user: getSafeUser(user),
+    });
+  } catch (err) {
+    console.error(err);
+
+    if (err.message === "JWT_SECRET belum diatur") {
       return res.status(500).json({
         error: "JWT_SECRET belum diatur",
       });
     }
-
-    const token = jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      }
-    );
-
-    res.cookie("token", token, {
-      ...cookieOptions,
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    });
-
-    return res.json({
-      message: "Login sukses",
-      user: {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    console.error(err);
 
     return res.status(500).json({
       error: "Login gagal",
@@ -249,8 +268,7 @@ export const forgotPassword = async (req, res) => {
     // Jangan kasih tahu apakah email terdaftar atau tidak
     if (!user) {
       return res.json({
-        message:
-          "Link reset password telah dikirim.",
+        message: "Link reset password telah dikirim.",
       });
     }
 
@@ -271,8 +289,7 @@ export const forgotPassword = async (req, res) => {
     await sendResetPasswordEmail(user.email, resetUrl);
 
     return res.json({
-      message:
-        "Link reset password telah dikirim.",
+      message: "Link reset password telah dikirim.",
     });
   } catch (err) {
     console.error(err);
@@ -324,7 +341,7 @@ export const resetPassword = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     await prisma.$transaction([
       prisma.user.update({
@@ -361,7 +378,7 @@ export const resetPassword = async (req, res) => {
 // LOGOUT
 export const logout = async (req, res) => {
   try {
-    res.clearCookie("token", cookieOptions);
+    res.clearCookie("token", baseCookieOptions);
 
     return res.json({
       message: "Logout berhasil",
