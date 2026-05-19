@@ -8,16 +8,25 @@ const prisma = new PrismaClient();
 
 const isProduction = process.env.NODE_ENV === "production";
 
-const baseCookieOptions = {
+const cookieOptionsWithoutDomain = {
   httpOnly: true,
   secure: isProduction,
   sameSite: isProduction ? "none" : "lax",
   path: "/",
 };
 
+const baseCookieOptions = {
+  ...cookieOptionsWithoutDomain,
+  ...(isProduction
+    ? {
+        domain: process.env.COOKIE_DOMAIN || ".hypeid.store",
+      }
+    : {}),
+};
+
 const loginCookieOptions = {
   ...baseCookieOptions,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
 const createResetToken = () => {
@@ -34,7 +43,7 @@ const createResetToken = () => {
   };
 };
 
-const createToken = (user) => {
+const createJwtToken = (user) => {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET belum diatur");
   }
@@ -51,15 +60,13 @@ const createToken = (user) => {
   );
 };
 
-const getSafeUser = (user) => {
-  return {
-    id: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    role: user.role,
-    createdAt: user.createdAt,
-  };
+const safeUserSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  role: true,
+  createdAt: true,
 };
 
 const sendResetPasswordEmail = async (to, resetUrl) => {
@@ -171,26 +178,25 @@ export const register = async (req, res) => {
         email,
         password: hashed,
       },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
+      select: safeUserSelect,
     });
 
-    const token = createToken(user);
+    const token = createJwtToken(user);
 
     res.cookie("token", token, loginCookieOptions);
 
     return res.status(201).json({
       message: "Register sukses",
-      user: getSafeUser(user),
+      user,
     });
   } catch (err) {
     console.error(err);
+
+    if (err.message === "JWT_SECRET belum diatur") {
+      return res.status(500).json({
+        error: "JWT_SECRET belum diatur",
+      });
+    }
 
     return res.status(500).json({
       error: "Register gagal",
@@ -227,13 +233,20 @@ export const login = async (req, res) => {
       });
     }
 
-    const token = createToken(user);
+    const token = createJwtToken(user);
 
     res.cookie("token", token, loginCookieOptions);
 
     return res.json({
       message: "Login sukses",
-      user: getSafeUser(user),
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -265,7 +278,6 @@ export const forgotPassword = async (req, res) => {
       where: { email },
     });
 
-    // Jangan kasih tahu apakah email terdaftar atau tidak
     if (!user) {
       return res.json({
         message: "Link reset password telah dikirim.",
@@ -378,7 +390,11 @@ export const resetPassword = async (req, res) => {
 // LOGOUT
 export const logout = async (req, res) => {
   try {
+    // Hapus cookie domain production: .hypeid.store
     res.clearCookie("token", baseCookieOptions);
+
+    // Hapus juga cookie host-only lama, jika sebelumnya pernah dibuat tanpa domain.
+    res.clearCookie("token", cookieOptionsWithoutDomain);
 
     return res.json({
       message: "Logout berhasil",
