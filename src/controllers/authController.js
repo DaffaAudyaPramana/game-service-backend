@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
+import { sendEmail } from "../utils/mailer";
 
 const prisma = new PrismaClient();
 
@@ -70,18 +70,7 @@ const safeUserSelect = {
 };
 
 const sendResetPasswordEmail = async (to, resetUrl) => {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 10000,
-  });
-
-  await transporter.sendMail({
+  await sendEmail({
     to,
     subject: "Reset Password HyperIndoStore",
     text: `Klik link berikut untuk reset password: ${resetUrl}`,

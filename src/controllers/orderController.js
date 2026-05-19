@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import generateOrderId from "../utils/generateOrderId.js";
 import { fileTypeFromFile } from "file-type";
 import fs from "fs";
-import nodemailer from "nodemailer";
+import { sendEmail } from "../utils/mailer.js";
 import client from "../lib/discord.Bot.js";
 import { ChannelType, PermissionFlagsBits } from "discord.js";
 
@@ -143,10 +143,7 @@ const createDiscordTicket = async (order, tx) => {
     console.error("Discord channel gagal dibuat:", err?.message || err);
   }
 
-  setImmediate(() => {
-    if (to) {
-      transporter
-        .sendMail({
+        sendMail({
           to,
           subject: `Order Berhasil - ${safeOrderId}`,
           text: `Terima kasih telah order jasa GTA V di HyperIndoStore. Order ID: ${orderId} - ${name}`,
@@ -225,15 +222,8 @@ const createDiscordTicket = async (order, tx) => {
         .catch((err) => {
           console.error("Email gagal:", err?.message || err);
         });
-    } else {
-      console.error("Email dilewati: alamat email customer tidak tersedia");
-    }
-
-    if (!channel) {
-      console.error("Discord message dilewati: channel tidak tersedia");
-      return;
-    }
-
+      }
+      
     channel
       .send({
         content: mentionRoles.map((roleId) => `<@&${roleId}>`).join(" "),
@@ -310,11 +300,9 @@ const createDiscordTicket = async (order, tx) => {
       })
       .catch((err) => {
         console.error("Discord ticket gagal:", err?.message || err);
-      });
-  });
+      });;
 
   return channel;
-};
 
     const ownerRoleId = process.env.DISCORD_OWNER_ROLE_ID;
     const adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
