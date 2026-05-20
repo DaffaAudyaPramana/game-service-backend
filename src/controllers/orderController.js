@@ -258,12 +258,15 @@ const createDiscordTicket = async (order, tx) => {
               },
               {
                 name: "Service",
-                value: order.service || "-",
+                value: 
+                  serviceLabels[order.product?.category] ||
+                  order.product?.category ||
+                  order.service || "-",
                 inline: true,
               },
               {
                 name: "Item",
-                value: order.item || "-",
+                value: order.product?.name || order.item || "-",
                 inline: false,
               },
               {
@@ -331,9 +334,11 @@ export const createOrder = async (req, res) => {
       notes,
     } = req.body;
 
-    if (!productId || !totalPrice) {
+    const numericProductId = Number(productId);
+
+    if (!numericProductId || Number.isNaN(numericProductId)) {
       return res.status(400).json({
-        error: "productId dan totalPrice wajib",
+        error: "productId wajib dan harus valid",
       });
     }
 
@@ -342,15 +347,31 @@ export const createOrder = async (req, res) => {
         error: "Nama dan Rockstar ID wajib diisi",
       });
     }
+
+    // Ambil product dari database SEBELUM create order
+    const product = await prisma.product.findUnique({
+      where: {
+        id: numericProductId,
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        error: "Produk tidak ditemukan",
+      });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           orderId: generateOrderId(),
-          productId,
-          totalPrice,
-          status: "pending",
 
           userId: req.user.id,
+          productId: product.id,
+          // Pakai harga dari database, bukan dari frontend
+          totalPrice: product.price,
+
+          status: "pending",
 
           name,
           method,
@@ -362,6 +383,7 @@ export const createOrder = async (req, res) => {
 
         include: {
           product: true,
+          user: true,
         },
       });
 
