@@ -325,6 +325,8 @@ export const createOrder = async (req, res) => {
   try {
     const {
       productId,
+      service,
+      item,
       totalPrice,
       name,
       method,
@@ -334,11 +336,12 @@ export const createOrder = async (req, res) => {
       notes,
     } = req.body;
 
-    const numericProductId = Number(productId);
+    const numericProductId = productId ? Number(productId) : null;
+    const numericTotalPrice = totalPrice ? Number(totalPrice) : null;
 
-    if (!numericProductId || Number.isNaN(numericProductId)) {
+    if (!numericProductId && (!item || !numericTotalPrice)) {
       return res.status(400).json({
-        error: "productId wajib dan harus valid",
+        error: "productId atau item + totalPrice wajib",
       });
     }
 
@@ -348,12 +351,48 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Ambil product dari database SEBELUM create order
-    const product = await prisma.product.findUnique({
-      where: {
-        id: numericProductId,
-      },
-    });
+    let product = null;
+
+    if (numericProductId && !Number.isNaN(numericProductId)) {
+      product = await prisma.product.findUnique({
+        where: {
+          id: numericProductId,
+        },
+      });
+    }
+
+    if (!product) {
+      const candidates = await prisma.product.findMany({
+        where: {
+          price: numericTotalPrice,
+          ...(service
+            ? {
+                OR: [
+                  {
+                    type: service,
+                  },
+                  {
+                    category: service,
+                  },
+                ],
+              }
+            : {}),
+        },
+        orderBy: {
+          id: "asc",
+        },
+      });
+
+      const normalize = (value = "") =>
+        String(value)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+
+      product =
+        candidates.find((candidate) => normalize(candidate.name) === normalize(item)) ||
+        candidates[0] ||
+        null;
+    }
 
     if (!product) {
       return res.status(404).json({
@@ -368,7 +407,8 @@ export const createOrder = async (req, res) => {
 
           userId: req.user.id,
           productId: product.id,
-          // Pakai harga dari database, bukan dari frontend
+
+          // harga resmi dari database
           totalPrice: product.price,
 
           status: "pending",
@@ -396,7 +436,10 @@ export const createOrder = async (req, res) => {
         },
       });
 
-      return { order, gtaOrder };
+      return {
+        order,
+        gtaOrder,
+      };
     });
 
     // 🔥 AMBIL USER
