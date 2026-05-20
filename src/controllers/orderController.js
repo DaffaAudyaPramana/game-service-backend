@@ -143,7 +143,7 @@ const createDiscordTicket = async (order, tx) => {
     console.error("Discord channel gagal dibuat:", err?.message || err);
   }
 
-        sendMail({
+        sendEmail({
           to,
           subject: `Order Berhasil - ${safeOrderId}`,
           text: `Terima kasih telah order jasa GTA V di HyperIndoStore. Order ID: ${orderId} - ${name}`,
