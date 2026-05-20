@@ -665,12 +665,17 @@ export const updatePaymentStatus = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.update({
+      const payment = await tx.payment.upsert({
         where: {
           orderId: order.id,
         },
-        data: {
+        update: {
           status,
+        },
+        create: {
+          orderId: order.id,
+          status,
+          method: order.paymentMethod ?? order.method ?? "manual",
         },
       });
 
@@ -685,7 +690,7 @@ export const updatePaymentStatus = async (req, res) => {
 
       let earnedPoints = 0;
 
-      if (status === "approved") {
+      if (status === "approved" && order.userId) {
         const existingPointLedger = await tx.pointLedger.findUnique({
           where: {
             orderId: order.id,
