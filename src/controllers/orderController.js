@@ -382,21 +382,98 @@ export const createOrder = async (req, res) => {
       where: { id: req.user.id },
     });
 
-    // 🔥 KIRIM EMAIL
-    if (user?.email) {
-      try {
-        await sendEmail(
-            user.email,
-            result.order.orderId,
-            result.order.name,
-            serviceLabels[result.order.product.category] || result.order.product.category,
-            result.order.product.name,
-            result.order.totalPrice
-          );
-      } catch (err) {
-        console.error("Email gagal:", err.message);
-      }
-    }
+// 🔥 KIRIM EMAIL
+if (user?.email) {
+  try {
+    const orderId = result.order.orderId;
+    const name = result.order.name;
+    const service =
+      serviceLabels[result.order.product.category] ||
+      result.order.product.category;
+    const item = result.order.product.name;
+    const totalPrice = result.order.totalPrice;
+    const formattedPrice = Number(totalPrice || 0).toLocaleString("id-ID");
+
+    await sendEmail({
+      to: user.email,
+      subject: `Order Berhasil - ${orderId}`,
+      text: `Terima kasih telah order jasa GTA V di HyperIndoStore. Order ID: ${orderId} - ${name}`,
+      html: `
+        <div style="margin:0;padding:0;background:#0b0b0b;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+          <div style="max-width:600px;margin:0 auto;padding:32px 18px;">
+            <div style="background:#111111;border:1px solid #262626;border-radius:20px;overflow:hidden;">
+              
+              <div style="background:linear-gradient(135deg,#a3e635,#65a30d);padding:26px;text-align:center;color:#000000;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;">
+                  HYPERINDOSTORE
+                </div>
+
+                <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;">
+                  Order Berhasil Dibuat
+                </h1>
+
+                <p style="margin:8px 0 0;font-size:14px;">
+                  Terima kasih sudah order jasa GTA V di HyperIndoStore.
+                </p>
+              </div>
+
+              <div style="padding:26px;">
+                <p style="margin:0 0 18px;color:#d4d4d8;font-size:15px;line-height:1.7;">
+                  Halo <strong style="color:#ffffff;">${name}</strong>, order kamu sudah masuk ke sistem kami.
+                  Silakan lanjutkan pembayaran dan upload bukti transfer melalui halaman checkout.
+                </p>
+
+                <div style="background:#050505;border:1px solid #262626;border-radius:16px;padding:18px;margin-bottom:18px;">
+                  <p style="margin:0 0 8px;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.8px;">
+                    Detail Order
+                  </p>
+
+                  <div style="margin-bottom:14px;">
+                    <p style="margin:0;color:#71717a;font-size:13px;">Order ID</p>
+                    <p style="margin:4px 0 0;color:#a3e635;font-size:19px;font-weight:800;">
+                      ${orderId} - ${name}
+                    </p>
+                  </div>
+
+                  <div style="border-top:1px solid #262626;padding-top:14px;">
+                    <p style="margin:0 0 8px;color:#e5e7eb;font-size:14px;">
+                      <strong>Service:</strong> ${service}
+                    </p>
+
+                    <p style="margin:0 0 8px;color:#e5e7eb;font-size:14px;">
+                      <strong>Item:</strong> ${item}
+                    </p>
+
+                    <p style="margin:0;color:#e5e7eb;font-size:14px;">
+                      <strong>Total:</strong> Rp ${formattedPrice}
+                    </p>
+                  </div>
+                </div>
+
+                <div style="background:#0b0b0b;border-left:4px solid #a3e635;border-radius:12px;padding:16px;margin-bottom:20px;">
+                  <p style="margin:0;color:#e5e7eb;font-size:14px;line-height:1.7;">
+                    Setelah pembayaran selesai, upload bukti transfer agar admin dapat segera memproses order kamu.
+                  </p>
+                </div>
+
+                <p style="margin:0;color:#71717a;font-size:12px;line-height:1.6;text-align:center;">
+                  Email ini dikirim otomatis oleh HyperIndoStore.<br/>
+                  Mohon jangan membalas email ini.
+                </p>
+              </div>
+            </div>
+
+            <p style="text-align:center;margin-top:16px;color:#52525b;font-size:12px;">
+              © HyperIndoStore
+            </p>
+          </div>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("Email gagal:", err?.message || err);
+  }
+}
 
     await createDiscordTicket({
       ...result.order,
@@ -676,26 +753,3 @@ const escapeHtml = (value) => {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 };
-
-const sendEmail = async (
-  to,
-  orderId,
-  name,
-  service,
-  item,
-  totalPrice
-) => {
-  const safeOrderId = escapeHtml(orderId);
-  const safeName = escapeHtml(name);
-  const safeService = escapeHtml(service);
-  const safeItem = escapeHtml(item);
-  const formattedPrice = Number(totalPrice || 0).toLocaleString("id-ID");
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-}
