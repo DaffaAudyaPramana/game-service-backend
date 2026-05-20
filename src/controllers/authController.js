@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { sendEmail } from "../utils/mailer";
+import { sendEmail } from "../utils/mailer.js";
 
 const prisma = new PrismaClient();
 
