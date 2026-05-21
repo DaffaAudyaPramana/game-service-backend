@@ -74,8 +74,14 @@ const createDiscordTicket = async (order, tx) => {
 
   const safeOrderId = escapeHtml(orderId);
   const safeName = escapeHtml(name);
-  const safeService = escapeHtml(order.service || "-");
-  const safeItem = escapeHtml(order.item || "-");
+  const serviceKey = order.product?.type || order.product?.category || "";
+  const serviceName = serviceLabels[serviceKey] || serviceKey || "-";
+  const itemName = order.product?.name || order.item || "-";
+
+  const safeService = escapeHtml(serviceName);
+  const safeItem = escapeHtml(itemName);
+  const safeWhatsapp = escapeHtml(order.whatsapp || "-");
+  const safeDiscordUsername = escapeHtml(order.discordUsername || "-");
   const formattedPrice = Number(order.totalPrice || 0).toLocaleString("id-ID");
 
   try {
@@ -258,15 +264,12 @@ const createDiscordTicket = async (order, tx) => {
               },
               {
                 name: "Service",
-                value: 
-                  serviceLabels[order.product?.category] ||
-                  order.product?.category ||
-                  order.service || "-",
+                value: serviceName,
                 inline: true,
               },
               {
                 name: "Item",
-                value: order.product?.name || order.item || "-",
+                value: itemName,
                 inline: false,
               },
               {
@@ -333,11 +336,22 @@ export const createOrder = async (req, res) => {
       platform,
       version,
       gameUserId,
+      whatsapp,
+      discordUsername,
       notes,
     } = req.body;
 
     const numericProductId = productId ? Number(productId) : null;
     const numericTotalPrice = totalPrice ? Number(totalPrice) : null;
+
+    const cleanWhatsapp = String(whatsapp || "").trim();
+    const cleanDiscordUsername = String(discordUsername || "").trim();
+
+    if (!cleanWhatsapp || !cleanDiscordUsername) {
+      return res.status(400).json({
+        error: "WhatsApp dan Username Discord wajib diisi",
+      });
+    }
 
     if (!numericProductId && (!item || !numericTotalPrice)) {
       return res.status(400).json({
@@ -418,6 +432,8 @@ export const createOrder = async (req, res) => {
           platform,
           version,
           gameUserId,
+          whatsapp: cleanWhatsapp,
+          discordUsername: cleanDiscordUsername,
           notes,
         },
 
@@ -540,14 +556,7 @@ if (user?.email) {
   }
 }
 
-    await createDiscordTicket({
-      ...result.order,
-      service: serviceLabels[result.order.product.category] || result.order.product.category,
-      item: result.order.product.name,
-    },
-    
-    prisma
-  );
+    await createDiscordTicket(result.order, prisma);
 
     res.status(200).json({
       message: "Order + GTAOrder berhasil dibuat",
