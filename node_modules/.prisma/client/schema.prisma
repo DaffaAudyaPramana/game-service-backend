@@ -57,19 +57,21 @@ model Order {
   status     String @default("pending")
   totalPrice Int
 
-  name       String?
-  method     String?
-  platform   String?
-  version    String?
-  gameUserId String?
-  notes      String?
+  name            String?
+  method          String?
+  platform        String?
+  version         String?
+  gameUserId      String?
+  whatsapp        String?
+  discordUsername String?
+  notes           String?
 
   discordChannelId String?
 
   createdAt DateTime @default(now())
 
   user    User     @relation(fields: [userId], references: [id])
-  product Product  @relation(fields: [productId], references: [id])
+  product Product  @relation(fields: [productId], references: [id], onDelete: SetNull)
   payment Payment?
 
   gtaOrder GTAOrder?
@@ -85,7 +87,7 @@ model Payment {
   proof      String?
   gatewayRef String?
 
-  order Order @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model GTAOrder {
@@ -95,7 +97,7 @@ model GTAOrder {
   targetAccount String
   progress      Int
 
-  order Order @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 enum PointLedgerType {
