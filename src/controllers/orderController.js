@@ -293,8 +293,18 @@ const createDiscordTicket = async (order, tx) => {
                 inline: true,
               },
               {
+                name: "WhatsApp",
+                value: order.whatsapp || "-",
+                inline: true,
+              },
+              {
                 name: "Rockstar ID",
                 value: order.gameUserId || "-",
+                inline: false,
+              },
+              {
+                name: "User Discord",
+                value: order.discordUsername || "-",
                 inline: false,
               },
               {
