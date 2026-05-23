@@ -45,7 +45,8 @@ model Product {
   price       Int
   description String?
 
-  orders Order[]
+  orders     Order[]
+  orderItems OrderItem[]
 }
 
 model Order {
@@ -77,6 +78,30 @@ model Order {
   gtaOrder GTAOrder?
 
   pointLedger PointLedger?
+
+  orderItems OrderItem[]
+}
+
+model OrderItem {
+  id        Int @id @default(autoincrement())
+  orderId   Int
+  productId Int
+
+  productName     String
+  productCategory String
+  productType     String
+
+  price    Int
+  quantity Int @default(1)
+  subtotal Int
+
+  createdAt DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model Payment {
