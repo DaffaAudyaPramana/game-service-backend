@@ -201,6 +201,11 @@ export const getAllUsersWithOrders = async (req, res) => {
             product: true,
             payment: true,
             gtaOrder: true,
+            orderItems: {
+              include: {
+                product: true,
+              },
+            },
           },
         },
       },
