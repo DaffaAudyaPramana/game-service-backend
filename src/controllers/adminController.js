@@ -223,3 +223,130 @@ export const getAllUsersWithOrders = async (req, res) => {
     });
   }
 };
+
+export const getManualRevenues = async (req, res) => {
+  try {
+    const data = await prisma.manualRevenue.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return res.json({
+      message: "Berhasil ambil revenue manual",
+      data,
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      error: "Gagal ambil revenue manual",
+    });
+  }
+};
+
+export const createManualRevenue = async (req, res) => {
+  try {
+    const { amount, description } = req.body;
+
+    const numericAmount = Number(amount);
+
+    if (!numericAmount || Number.isNaN(numericAmount)) {
+      return res.status(400).json({
+        error: "Nominal revenue wajib diisi dan tidak boleh 0",
+      });
+    }
+
+    const data = await prisma.manualRevenue.create({
+      data: {
+        amount: numericAmount,
+        description: description || null,
+        createdById: req.user?.id || null,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Revenue manual berhasil ditambahkan",
+      data,
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      error: "Gagal tambah revenue manual",
+    });
+  }
+};
+
+export const updateManualRevenue = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, description } = req.body;
+
+    const numericId = Number(id);
+    const numericAmount = Number(amount);
+
+    if (!numericId || Number.isNaN(numericId)) {
+      return res.status(400).json({
+        error: "ID revenue tidak valid",
+      });
+    }
+
+    if (!numericAmount || Number.isNaN(numericAmount)) {
+      return res.status(400).json({
+        error: "Nominal revenue wajib diisi dan tidak boleh 0",
+      });
+    }
+
+    const data = await prisma.manualRevenue.update({
+      where: {
+        id: numericId,
+      },
+      data: {
+        amount: numericAmount,
+        description: description || null,
+      },
+    });
+
+    return res.json({
+      message: "Revenue manual berhasil diupdate",
+      data,
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      error: "Gagal update revenue manual",
+    });
+  }
+};
+
+export const deleteManualRevenue = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const numericId = Number(id);
+
+    if (!numericId || Number.isNaN(numericId)) {
+      return res.status(400).json({
+        error: "ID revenue tidak valid",
+      });
+    }
+
+    await prisma.manualRevenue.delete({
+      where: {
+        id: numericId,
+      },
+    });
+
+    return res.json({
+      message: "Revenue manual berhasil dihapus",
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      error: "Gagal hapus revenue manual",
+    });
+  }
+};
