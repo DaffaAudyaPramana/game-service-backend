@@ -41,6 +41,11 @@ export const getMyOrders = async (req, res) => {
         product: true,
         payment: true,
         gtaOrder: true,
+        orderItems: {
+          include: {
+            product: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -60,6 +65,47 @@ export const getMyOrders = async (req, res) => {
   }
 };
 
+    const getOrderItems = (order) => {
+      if (Array.isArray(order.orderItems) && order.orderItems.length > 0) {
+        return order.orderItems.map((item) => ({
+          service: getServiceLabel(item.productType),
+          name: item.productName,
+          price: item.price,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+        }));
+      }
+
+      return [
+        {
+          service: getServiceLabel(order.product?.type || order.product?.category),
+          name: order.product?.name || order.item || "-",
+          price: order.totalPrice,
+          quantity: 1,
+          subtotal: order.totalPrice,
+        },
+      ];
+    };
+
+    const getOrderServiceName = (items) => {
+      const services = [...new Set(items.map((item) => item.service))];
+
+      if (services.length === 1) return services[0];
+
+      return "Custom Order";
+    };
+
+    const buildOrderItemsText = (items) => {
+      return items
+        .map((item, index) => {
+          const qtyText = item.quantity > 1 ? ` x${item.quantity}` : "";
+          const priceText = Number(item.subtotal || 0).toLocaleString("id-ID");
+
+          return `${index + 1}. ${item.name}${qtyText} — Rp ${priceText}`;
+        })
+        .join("\n");
+    };
+
 const createDiscordTicket = async (order, tx) => {
   let channel = null;
 
@@ -72,12 +118,12 @@ const createDiscordTicket = async (order, tx) => {
   const name = order.name || "Customer";
   const to = order.email || order.user?.email;
 
+  const orderItems = getOrderItems(order);
+  const serviceName = serviceLabels[serviceKey] || serviceKey || "-";
+  const itemsText = buildOrderItemsText(orderItems);
+
   const safeOrderId = escapeHtml(orderId);
   const safeName = escapeHtml(name);
-  const serviceKey = order.product?.type || order.product?.category || "";
-  const serviceName = serviceLabels[serviceKey] || serviceKey || "-";
-  const itemName = order.product?.name || order.item || "-";
-
   const safeService = escapeHtml(serviceName);
   const safeItem = escapeHtml(itemName);
   const safeWhatsapp = escapeHtml(order.whatsapp || "-");
@@ -149,89 +195,89 @@ const createDiscordTicket = async (order, tx) => {
     console.error("Discord channel gagal dibuat:", err?.message || err);
   }
 
-  setImmediate(() => {
-    if (to) {
-      sendEmail({
-        to,
-        subject: `Order Berhasil - ${safeOrderId}`,
-        text: `Terima kasih telah order jasa GTA V di HyperIndoStore. Order ID: ${orderId} - ${name}`,
-        html: `
-          <div style="margin:0;padding:0;background:#0b0b0b;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
-            <div style="max-width:600px;margin:0 auto;padding:32px 18px;">
-              <div style="background:#111111;border:1px solid #262626;border-radius:20px;overflow:hidden;">
+  // setImmediate(() => {
+  //   if (to) {
+  //     sendEmail({
+  //       to,
+  //       subject: `Order Berhasil - ${safeOrderId}`,
+  //       text: `Terima kasih telah order jasa GTA V di HyperIndoStore. Order ID: ${orderId} - ${name}`,
+  //       html: `
+  //         <div style="margin:0;padding:0;background:#0b0b0b;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+  //           <div style="max-width:600px;margin:0 auto;padding:32px 18px;">
+  //             <div style="background:#111111;border:1px solid #262626;border-radius:20px;overflow:hidden;">
                 
-                <div style="background:linear-gradient(135deg,#a3e635,#65a30d);padding:26px;text-align:center;color:#000000;">
-                  <div style="font-size:13px;font-weight:800;letter-spacing:1px;">
-                    HYPERINDOSTORE
-                  </div>
+  //               <div style="background:linear-gradient(135deg,#a3e635,#65a30d);padding:26px;text-align:center;color:#000000;">
+  //                 <div style="font-size:13px;font-weight:800;letter-spacing:1px;">
+  //                   HYPERINDOSTORE
+  //                 </div>
 
-                  <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;">
-                    Order Berhasil Dibuat
-                  </h1>
+  //                 <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;">
+  //                   Order Berhasil Dibuat
+  //                 </h1>
 
-                  <p style="margin:8px 0 0;font-size:14px;">
-                    Terima kasih sudah order jasa GTA V di HyperIndoStore.
-                  </p>
-                </div>
+  //                 <p style="margin:8px 0 0;font-size:14px;">
+  //                   Terima kasih sudah order jasa GTA V di HyperIndoStore.
+  //                 </p>
+  //               </div>
 
-                <div style="padding:26px;">
-                  <p style="margin:0 0 18px;color:#d4d4d8;font-size:15px;line-height:1.7;">
-                    Halo <strong style="color:#ffffff;">${safeName}</strong>, order kamu sudah masuk ke sistem kami.
-                    Silakan lanjutkan pembayaran dan upload bukti transfer melalui halaman checkout.
-                  </p>
+  //               <div style="padding:26px;">
+  //                 <p style="margin:0 0 18px;color:#d4d4d8;font-size:15px;line-height:1.7;">
+  //                   Halo <strong style="color:#ffffff;">${safeName}</strong>, order kamu sudah masuk ke sistem kami.
+  //                   Silakan lanjutkan pembayaran dan upload bukti transfer melalui halaman checkout.
+  //                 </p>
 
-                  <div style="background:#050505;border:1px solid #262626;border-radius:16px;padding:18px;margin-bottom:18px;">
-                    <p style="margin:0 0 8px;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.8px;">
-                      Detail Order
-                    </p>
+  //                 <div style="background:#050505;border:1px solid #262626;border-radius:16px;padding:18px;margin-bottom:18px;">
+  //                   <p style="margin:0 0 8px;color:#a1a1aa;font-size:12px;text-transform:uppercase;letter-spacing:.8px;">
+  //                     Detail Order
+  //                   </p>
 
-                    <div style="margin-bottom:14px;">
-                      <p style="margin:0;color:#71717a;font-size:13px;">Order ID</p>
-                      <p style="margin:4px 0 0;color:#a3e635;font-size:19px;font-weight:800;">
-                        ${safeOrderId} - ${safeName}
-                      </p>
-                    </div>
+  //                   <div style="margin-bottom:14px;">
+  //                     <p style="margin:0;color:#71717a;font-size:13px;">Order ID</p>
+  //                     <p style="margin:4px 0 0;color:#a3e635;font-size:19px;font-weight:800;">
+  //                       ${safeOrderId} - ${safeName}
+  //                     </p>
+  //                   </div>
 
-                    <div style="border-top:1px solid #262626;padding-top:14px;">
-                      <p style="margin:0 0 8px;color:#e5e7eb;font-size:14px;">
-                        <strong>Service:</strong> ${safeService}
-                      </p>
+  //                   <div style="border-top:1px solid #262626;padding-top:14px;">
+  //                     <p style="margin:0 0 8px;color:#e5e7eb;font-size:14px;">
+  //                       <strong>Service:</strong> ${safeService}
+  //                     </p>
 
-                      <p style="margin:0 0 8px;color:#e5e7eb;font-size:14px;">
-                        <strong>Item:</strong> ${safeItem}
-                      </p>
+  //                     <p style="margin:0 0 8px;color:#e5e7eb;font-size:14px;">
+  //                       <strong>Item:</strong> ${safeItem}
+  //                     </p>
 
-                      <p style="margin:0;color:#e5e7eb;font-size:14px;">
-                        <strong>Total:</strong> Rp ${formattedPrice}
-                      </p>
-                    </div>
-                  </div>
+  //                     <p style="margin:0;color:#e5e7eb;font-size:14px;">
+  //                       <strong>Total:</strong> Rp ${formattedPrice}
+  //                     </p>
+  //                   </div>
+  //                 </div>
 
-                  <div style="background:#0b0b0b;border-left:4px solid #a3e635;border-radius:12px;padding:16px;margin-bottom:20px;">
-                    <p style="margin:0;color:#e5e7eb;font-size:14px;line-height:1.7;">
-                      Setelah pembayaran selesai, upload bukti transfer agar admin dapat segera memproses order kamu.
-                    </p>
-                  </div>
+  //                 <div style="background:#0b0b0b;border-left:4px solid #a3e635;border-radius:12px;padding:16px;margin-bottom:20px;">
+  //                   <p style="margin:0;color:#e5e7eb;font-size:14px;line-height:1.7;">
+  //                     Setelah pembayaran selesai, upload bukti transfer agar admin dapat segera memproses order kamu.
+  //                   </p>
+  //                 </div>
 
-                  <p style="margin:0;color:#71717a;font-size:12px;line-height:1.6;text-align:center;">
-                    Email ini dikirim otomatis oleh HyperIndoStore.<br/>
-                    Mohon jangan membalas email ini.
-                  </p>
-                </div>
-              </div>
+  //                 <p style="margin:0;color:#71717a;font-size:12px;line-height:1.6;text-align:center;">
+  //                   Email ini dikirim otomatis oleh HyperIndoStore.<br/>
+  //                   Mohon jangan membalas email ini.
+  //                 </p>
+  //               </div>
+  //             </div>
 
-              <p style="text-align:center;margin-top:16px;color:#52525b;font-size:12px;">
-                © HyperIndoStore
-              </p>
-            </div>
-          </div>
-        `,
-      }).catch((err) => {
-        console.error("Email order gagal:", err?.message || err);
-      });
-    } else {
-      console.error("Email order dilewati: alamat email customer tidak tersedia");
-    }
+  //             <p style="text-align:center;margin-top:16px;color:#52525b;font-size:12px;">
+  //               © HyperIndoStore
+  //             </p>
+  //           </div>
+  //         </div>
+  //       `,
+  //     }).catch((err) => {
+  //       console.error("Email order gagal:", err?.message || err);
+  //     });
+  //   } else {
+  //     console.error("Email order dilewati: alamat email customer tidak tersedia");
+  //   }
 
     if (!channel) {
       console.error("Discord message dilewati: channel tidak tersedia");
@@ -269,11 +315,11 @@ const createDiscordTicket = async (order, tx) => {
               },
               {
                 name: "Item",
-                value: itemName,
+                value: itemsText || "-",
                 inline: false,
               },
               {
-                name: "Harga",
+                name: "Harga Total",
                 value: `Rp ${Number(order.totalPrice || 0).toLocaleString("id-ID")}`,
                 inline: true,
               },
@@ -325,14 +371,81 @@ const createDiscordTicket = async (order, tx) => {
       .catch((err) => {
         console.error("Discord message gagal:", err?.message || err);
       });
-  });
 
-  return channel;
-};
+      return channel;
+  };
 
     const ownerRoleId = process.env.DISCORD_OWNER_ROLE_ID;
     const adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
     const mentionRoles = [ownerRoleId, adminRoleId].filter(Boolean);
+
+    const normalize = (value = "") =>
+      String(value)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+    const toNumber = (value) => {
+      if (typeof value === "number") return value;
+
+      return Number(String(value || "").replace(/\D/g, ""));
+    };
+
+    const findProductFromOrderItem = async (tx, rawItem) => {
+      const numericProductId = rawItem.productId ? Number(rawItem.productId) : null;
+      const numericPrice = rawItem.price
+        ? toNumber(rawItem.price)
+        : toNumber(rawItem.totalPrice);
+
+      const itemName = rawItem.name || rawItem.item || rawItem.label || "";
+      const service = rawItem.service || rawItem.type || rawItem.category || "";
+
+      if (numericProductId && !Number.isNaN(numericProductId)) {
+        const product = await tx.product.findUnique({
+          where: {
+            id: numericProductId,
+          },
+        });
+
+        if (product) return product;
+      }
+
+      const candidates = await tx.product.findMany({
+        where: {
+          ...(numericPrice
+            ? {
+                price: numericPrice,
+              }
+            : {}),
+          ...(service
+            ? {
+                OR: [
+                  {
+                    type: service,
+                  },
+                  {
+                    category: service,
+                  },
+                ],
+              }
+            : {}),
+        },
+        orderBy: {
+          id: "asc",
+        },
+      });
+
+      return (
+        candidates.find(
+          (candidate) => normalize(candidate.name) === normalize(itemName)
+        ) ||
+        candidates[0] ||
+        null
+      );
+    };
+
+    const getServiceLabel = (typeOrCategory) => {
+      return serviceLabels[typeOrCategory] || typeOrCategory || "-";
+    };
 
 export const createOrder = async (req, res) => {
   try {
@@ -341,6 +454,9 @@ export const createOrder = async (req, res) => {
       service,
       item,
       totalPrice,
+
+      items,
+
       name,
       method,
       platform,
@@ -351,15 +467,44 @@ export const createOrder = async (req, res) => {
       notes,
     } = req.body;
 
+    const customerName = String(name || "").trim();
+    const rockstarId = String(gameUserId || "").trim();
     const numericProductId = productId ? Number(productId) : null;
     const numericTotalPrice = totalPrice ? Number(totalPrice) : null;
 
     const cleanWhatsapp = String(whatsapp || "").trim();
     const cleanDiscordUsername = String(discordUsername || "").trim();
 
+    if (!customerName || !rockstarId) {
+      return res.status(400).json({
+        error: "Nama dan Rockstar ID wajib diisi",
+      });
+    }
+
     if (!cleanWhatsapp || !cleanDiscordUsername) {
       return res.status(400).json({
         error: "WhatsApp dan Username Discord wajib diisi",
+      });
+    }
+
+    const rawItems =
+      Array.isArray(items) && items.length > 0
+        ? items
+        : [
+            {
+              productId,
+              service,
+              item,
+              name: item,
+              price: totalPrice,
+              totalPrice,
+              quantity: 1,
+            },
+          ];
+
+    if (!rawItems.length) {
+      return res.status(400).json({
+        error: "Keranjang masih kosong",
       });
     }
 
@@ -376,14 +521,6 @@ export const createOrder = async (req, res) => {
     }
 
     let product = null;
-
-    if (numericProductId && !Number.isNaN(numericProductId)) {
-      product = await prisma.product.findUnique({
-        where: {
-          id: numericProductId,
-        },
-      });
-    }
 
     if (!product) {
       const candidates = await prisma.product.findMany({
@@ -425,32 +562,69 @@ export const createOrder = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const resolvedItems = [];
+
+      for (const rawItem of rawItems) {
+        const product = await findProductFromOrderItem(tx, rawItem);
+
+        if (!product) {
+          throw new Error(
+            `Produk tidak ditemukan: ${rawItem.name || rawItem.item || "-"}`
+          );
+        }
+
+        const quantity = Math.max(1, Number(rawItem.quantity || 1));
+        const subtotal = product.price * quantity;
+
+        resolvedItems.push({
+          product,
+          quantity,
+          subtotal,
+        });
+      }
+
+      const totalOrderPrice = resolvedItems.reduce(
+        (total, item) => total + item.subtotal,
+        0
+      );
+
+      const firstProduct = resolvedItems[0].product;
       const order = await tx.order.create({
         data: {
           orderId: generateOrderId(),
 
           userId: req.user.id,
-          productId: product.id,
 
-          // harga resmi dari database
-          totalPrice: product.price,
+          // untuk kompatibilitas kode lama
+          productId: firstProduct.id,
 
+          totalPrice: totalOrderPrice,
           status: "pending",
 
-          name,
+          name: customerName,
           method,
           platform,
           version,
-          gameUserId,
+          gameUserId: rockstarId,
           whatsapp: cleanWhatsapp,
           discordUsername: cleanDiscordUsername,
           notes,
         },
+      });
 
-        include: {
-          product: true,
-          user: true,
-        },
+      await tx.orderItem.createMany({
+        data: resolvedItems.map((item) => ({
+          orderId: order.id,
+          productId: item.product.id,
+
+          productName: item.product.name,
+          productCategory: item.product.category,
+          productType: item.product.type,
+
+          price: item.product.price,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+        })),
       });
 
       const gtaOrder = await tx.gTAOrder.create({
@@ -462,8 +636,23 @@ export const createOrder = async (req, res) => {
         },
       });
 
+      const fullOrder = await tx.order.findUnique({
+        where: {
+          id: order.id,
+        },
+        include: {
+          product: true,
+          user: true,
+          orderItems: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
       return {
-        order,
+        order: fullOrder,
         gtaOrder,
       };
     });
@@ -532,7 +721,7 @@ if (user?.email) {
                     </p>
 
                     <p style="margin:0 0 8px;color:#e5e7eb;font-size:14px;">
-                      <strong>Item:</strong> ${item}
+                      <strong>Item:</strong> ${safeItem}
                     </p>
 
                     <p style="margin:0;color:#e5e7eb;font-size:14px;">
@@ -568,15 +757,15 @@ if (user?.email) {
 
     await createDiscordTicket(result.order, prisma);
 
-    res.status(200).json({
-      message: "Order + GTAOrder berhasil dibuat",
+    return res.status(200).json({
+      message: "Order berhasil dibuat",
       data: result,
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({
-      error: error.message,
+
+    return res.status(500).json({
+      error: error.message || "Gagal membuat order",
     });
   }
 };
@@ -586,7 +775,20 @@ export const getOrderByOrderId = async (req, res) => {
     const { orderId } = req.params;
 
     const order = await prisma.order.findUnique({
-      where: { orderId },
+      where: {
+        orderId,
+      },
+      include: {
+        product: true,
+        payment: true,
+        gtaOrder: true,
+        user: true,
+        orderItems: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
 
     if (!order) {
@@ -595,14 +797,14 @@ export const getOrderByOrderId = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       message: "Berhasil ambil order",
       data: order,
     });
-
   } catch (err) {
     console.error(err);
-    res.status(500).json({
+
+    return res.status(500).json({
       error: "Gagal ambil order",
     });
   }
@@ -705,7 +907,14 @@ export const getAllOrders = async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       include: {
+        product: true,
         payment: true,
+        gtaOrder: true,
+        orderItems: {
+          include: {
+            product: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
